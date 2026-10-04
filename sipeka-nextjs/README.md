@@ -68,6 +68,6 @@ Nadia memberi contoh data sesuai. Arif memiliki contoh tiket selesai akibat kete
 
 Lihat `docs/backend-integration.md`. Default selalu `mock`. Adapter HTTP memakai base URL backend Anda, bukan alamat BPJS. Kontrak frontend dapat diimpor atau disalin ke BE TypeScript, atau memakai OpenAPI untuk BE bahasa lain.
 
-Project ini dapat dibuat sebagai project Vercel baru dengan framework Next.js, build `pnpm build`, output `out`. Jangan tautkan folder ini ke project deployment lama jika ingin mempertahankan demo lama. Proyek ini belum dipublikasikan ke Vercel.
+Project ini dapat dibuat sebagai project Vercel baru dengan framework Next.js dan build `pnpm build`. Jika repository berisi folder ini bersama proyek lain, gunakan Root Directory `sipeka-nextjs`. Biarkan Output Directory pada default framework (override dimatikan); jangan set `out`. Adapter Next.js Vercel membaca metadata build dari `.next` dan menangani konfigurasi `output: "export"` secara otomatis. `out/` dipakai untuk hosting HTML statis biasa. Jangan tautkan folder ini ke project deployment lama jika ingin mempertahankan demo lama.
 
 Login statis adalah demo, bukan autentikasi produksi. Semua JSON yang dibundel adalah publik. BE produksi harus menerapkan autentikasi, pembatasan akses per identitas/perusahaan, penyaringan atribut privat di server, idempotensi, audit, dan validasi transisi. Ganti `AuthProvider`/`demo-auth` dengan integrasi login BE Anda; adapter HTTP tetap terpisah dari komponen UI.
