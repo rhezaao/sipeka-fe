@@ -1,0 +1,5 @@
+[
+  { "username": "pekerja", "password": "Pekerja123!", "role": "worker", "name": "Dimas Pratama", "workerId": "PK-001" },
+  { "username": "perusahaan", "password": "Perusahaan123!", "role": "company", "name": "Ratna Putri", "workerId": null },
+  { "username": "petugas", "password": "Petugas123!", "role": "bpjs", "name": "Maya Anggraini", "workerId": null }
+]

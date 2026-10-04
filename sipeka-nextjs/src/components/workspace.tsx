@@ -1,0 +1,37 @@
+"use client";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useDemo } from "./demo-provider";
+import { AuthGate, useAuth } from "./auth-provider";
+import { Badge, Icon, Notice, Modal } from "./ui";
+import { WorkerHome, WorkerCheck, WorkerHistory, CreateComplaint, WorkerAccount } from "./worker-views";
+import { OrganizationHome, OrganizationData, Reports } from "./organization-views";
+import { TicketDetail, TicketList } from "./ticket-views";
+import { roleLabels, scenarioLabels, periodLabel } from "@/domain/labels";
+import type { Role } from "@/domain/schemas";
+
+export type View = "home"|"history"|"check"|"create"|"tickets"|"account"|"workers"|"contributions"|"queue"|"detail"|"reports"|"access";
+export const basePath = (role:Role) => role==="worker"?"/pekerja/":role==="company"?"/perusahaan/":"/bpjs/";
+export const detailPath = (role:Role,id:string) => `${basePath(role)}${role==="bpjs"?"kasus/":"tiket/detail/"}?id=${encodeURIComponent(id)}`;
+const menus:Record<Role,Array<[View,string,string,string]>> = {
+  worker:[["home","Beranda","home",""],["history","Riwayat","history","riwayat/"],["tickets","Tiket saya","ticket","tiket/"],["account","Akun saya","user","akun/"]],
+  company:[["home","Ringkasan","home",""],["workers","Data pekerja","user","pekerja/"],["contributions","Data iuran","chart","iuran/"],["tickets","Tiket & klarifikasi","ticket","tiket/"],["access","Akses & privasi","lock","akses/"]],
+  bpjs:[["home","Ringkasan","home",""],["queue","Antrean tiket","ticket","antrean/"],["reports","Laporan","chart","laporan/"],["access","Akses & privasi","lock","akses/"]],
+};
+export function Workspace({role,view}:{role:Role;view:View}) {
+  return <AuthGate role={role}><WorkspaceContent role={role} view={view}/></AuthGate>;
+}
+function WorkspaceContent({role,view}:{role:Role;view:View}) {
+  const auth=useAuth();
+  const d=useDemo();const router=useRouter();const params=useSearchParams(); const [notifications,setNotifications]=useState(false);
+  if(!d.data)return <main className="loading-view"><Icon/><h1>SIPEKA</h1><p role="status">{d.error||"Menyiapkan data simulasi…"}</p></main>;
+  const worker=d.data.workers.find(w=>w.id===d.workerId)!; const company=d.data.companies.find(c=>c.id===worker.companyId)!;
+  const name=role==="worker"?worker.name:d.data.metadata.actors[role];const nav=menus[role];
+  const events=d.data.tickets.filter(t=>role!=="worker"||t.workerId===worker.id).flatMap(t=>t.events.filter(e=>role!=="company"||e.visibility==="ALL").map(e=>({...e,ticketId:t.id}))).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)).slice(0,10);
+  return <div className="shell"><a href="#main-content" className="skip-link">Lewati ke konten</a><aside className="sidebar"><Link href={basePath(role)} className="logo"><span className="logo-mark"><Icon/></span><span className="brand">SIPEKA</span></Link><p className="logo-caption">Sistem Informasi Perlindungan<br/>Kepesertaan Pekerja</p><div className="nav-label">{roleLabels[role]}</div><nav className="nav" aria-label="Menu utama">{nav.map(([v,label,icon,path])=><Link key={v} href={`${basePath(role)}${path}`} className={view===v?"active":""} aria-current={view===v?"page":undefined}><Icon name={icon}/>{label}</Link>)}</nav><div className="side-bottom"><div className="side-note"><Icon name="lock"/><strong>Perlindungan dimulai dari data yang sesuai.</strong>Pantau status dan ajukan pemeriksaan jika ada perbedaan.</div><div className="side-profile"><span className="avatar">{role==="worker"?worker.initials:role==="company"?"RP":"MA"}</span><div><strong>{name}</strong><br/><small>{roleLabels[role]} · simulasi</small></div></div></div></aside><div className="main"><header className="topbar"><div className="breadcrumb"><span className="mobile-brand">SIPEKA</span><span>{roleLabels[role]}</span><span>/</span><strong>{nav.find(n=>n[0]===view)?.[1]||"Pemeriksaan"}</strong></div><div className="top-actions"><span className="signed-in-role">{roleLabels[role]}</span><button className="btn secondary logout-button" onClick={()=>{auth.logout();router.replace("/login/");}} disabled={d.pending}><Icon name="lock"/>Keluar</button><button className="icon-button" aria-label="Aktivitas tiket" onClick={()=>setNotifications(true)}><Icon name="history"/></button></div></header><main className="content" id="main-content"><div className="demo-bar"><span><Icon name="info"/><strong>Mode simulasi</strong> · Seluruh data fiktif</span><div className="demo-controls"><select aria-label="Pilih pekerja simulasi" value={worker.id} onChange={e=>{d.setWorkerId(e.target.value);d.setPeriod(e.target.value==="PK-004"?"2026-10":"2026-09");}}>{d.data.workers.map(w=><option key={w.id} value={w.id}>{w.name} · {scenarioLabels[w.scenario]}</option>)}</select><button className="link-button" onClick={d.reset} disabled={d.pending}>Reset demo</button></div></div>{d.error&&<div role="alert"><Notice tone="warn" title="Aksi belum berhasil">{d.error}</Notice></div>}{d.message&&<div role="status" className="session-message">{d.message}</div>}
+  {role==="worker"&&view==="home"?<WorkerHome/>:role==="worker"&&view==="check"?<WorkerCheck/>:role==="worker"&&view==="history"?<WorkerHistory/>:role==="worker"&&view==="create"?<CreateComplaint key={`${worker.id}-${d.period}`}/>:role==="worker"&&view==="account"?<WorkerAccount/>:view==="detail"?<TicketDetail role={role} id={params.get("id")||""}/>:view==="tickets"||view==="queue"?<TicketList role={role}/>:view==="workers"||view==="contributions"?<OrganizationData view={view}/>:view==="reports"?<Reports/>:view==="access"?<><PageHead title="Akses & privasi" description="Pembagian informasi dalam simulasi SIPEKA."/><section className="card"><h2>Informasi sesuai peran</h2><p className="muted">Pekerja melihat laporannya. Perusahaan melihat permintaan klarifikasi dan bukti yang diizinkan. Petugas meninjau laporan, keterangan tambahan, dan bukti pemeriksaan.</p><Notice>Login menggunakan akun statis untuk simulasi. Otorisasi backend belum dipasang; seluruh dataset berisi informasi fiktif.</Notice></section></>:<OrganizationHome role={role}/>}
+  <footer className="footer">SIPEKA · Prototipe Healthkathon · Data simulasi, tanpa integrasi BPJS sungguhan</footer></main><nav className="bottom-nav" aria-label="Menu seluler">{nav.slice(0,4).map(([v,label,icon,path])=><Link key={v} href={`${basePath(role)}${path}`} className={view===v?"active":""}><Icon name={icon}/><span>{label}</span></Link>)}</nav></div>{notifications&&<Modal title="Aktivitas tiket" onClose={()=>setNotifications(false)}>{events.length?events.map(e=><Link className="activity-item" key={`${e.ticketId}-${e.id}`} href={detailPath(role,e.ticketId)} onClick={()=>setNotifications(false)}><strong>{e.action}</strong><span>{e.ticketId} · {e.actorName}</span><small>{e.note}</small></Link>):<p>Belum ada aktivitas untuk pekerja ini.</p>}</Modal>}</div>;
+}
+export function PageHead({title,description,period=true}:{title:string;description:string;period?:boolean}){const d=useDemo();return <div className="page-head"><div><div className="eyebrow">Kepesertaan JKN</div><h1>{title}</h1><p className="muted">{description}</p></div>{period&&<label className="period"><Icon name="history"/><select aria-label="Periode pemeriksaan" value={d.period} onChange={e=>d.setPeriod(e.target.value)}>{d.data?.metadata.periods.map(p=><option key={p} value={p}>{periodLabel(p)}</option>)}</select></label>}</div>;}
+
